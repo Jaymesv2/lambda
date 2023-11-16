@@ -1,3 +1,8 @@
+#[workspace]
+#members = [
+#    "rts"
+#]
+
 [package]
 name = "lambda"
 version = "0.1.0"
@@ -6,6 +11,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+libloading = "0.8.1"
+#pest = "2.6"
+#pest_derive = "2.6"
+#nom = "7.1.3"
+unicode-segmentation = "1.10.1"
+lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
+clap = { version = "4.4.8", features = ["derive"] }
+clap-verbosity-flag = "2.1.0"
+
+# Add a build-time dependency on the lalrpop library:
+[build-dependencies]
+lalrpop = "0.20.0"
 
 
 

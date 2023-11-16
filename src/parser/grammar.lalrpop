@@ -1,0 +1,126 @@
+use std::str::FromStr;
+use crate::parser::{
+    ast::*,
+    pos::*,
+    tokenizer::*,
+    grammar::Error
+};
+
+use std::vec::Vec;
+
+//grammar;
+
+//grammar<'input, 'env, Id>(src: &'input str, type_cache: &TypeCache<Id, ArcType<Id>>, env: MutIdentEnv<'env, Id>, errors: ErrorEnv<'env, 'input>) where Id: Clone;
+
+grammar<'a>(src: &'a str);
+extern {
+    type Location = BytePos;
+    type Error = Spanned<TokenizerError, BytePos>;
+
+    enum Token<'a> {
+        "ident" => Token::VarIdent(<&'a str>),
+        "operator" => Token::Operator(<&'a str>),
+
+        "whitespace" => Token::Whitespace(<&'a str>),
+        "string literal" => Token::StringLiteral(<String>),
+        "char literal" => Token::CharLiteral(<char>),
+        "integer literal" => Token::IntegerLiteral(<i64>),
+        "byte literal" => Token::ByteLiteral(<u8>),
+        "float literal" => Token::FloatLiteral(<f64>),
+
+        //"comment" => Comment,
+        "newline" => Token::Newline,
+        "if" => Token::If,
+        "then" => Token::Then,
+        "else" => Token::Else,
+        "let" => Token::Let,
+        "in" => Token::In,
+        "case" => Token::Case,
+        "of" => Token::Of,
+
+        "|" => Token::Pipe, //'|'
+        "," => Token::Comma, //','
+        ";" => Token::Semi, //';'
+        "~" => Token::Tilde, //'`'
+        "\\" => Token::Backslash, // '\\'
+        "[" => Token::LBracket, //'[' 
+        "{" => Token::LBrace, //'{' 
+        "(" => Token::LParen, //'('
+        "]" => Token::RBracket, //']'
+        "}" => Token::RBrace, //'}'
+        ")" => Token::RParen, //')'
+
+        "=" => Token::Equals, 
+        "->" => Token::Arrow,
+        "=>" => Token::BigArrow,
+        //"" => Error(TokenizerError),
+    }
+}
+
+// pub Varid: Varid = <r#"[a-z][A-Za-z0-9]*"#> => Varid::new(String::from(<>));
+// 
+// PosInteger: u64 = <r"0|([1-9][0-9]*)"> => u64::from_str(<>).unwrap();
+// NegInteger: i64 = "-" <PosInteger> => -(<> as i64);
+// 
+// pub Integer: i64 = {
+//     <PosInteger> => <> as i64,
+//     <NegInteger> => <>,
+// };
+// 
+// pub String: String = {
+//     <r#""([^"]*)""#>=> String::from(<>),
+// };
+// 
+// pub Literal: Literal = {
+//     <Integer> => Literal::Integer(<>),
+//     <String> => Literal::String(<>),
+// };
+
+pub Varid: Varid = "ident" => Varid::from_str(<>);
+
+pub Literal: Literal = {
+    "integer literal" => Literal::Integer(<>),
+    "string literal" => Literal::String(<>),
+}
+
+pub Lambda: Lambda = "\\" <binding:Varid> "->" <body:Expr> => Lambda::new(binding, body);
+
+pub Application: Application = <func:Expr> <arg:Expr> => Application::new(func, arg);
+
+pub Expr: Expr = {
+    <Varid> => Expr::Ident(<>),
+    <Literal> => Expr::Literal(<>),
+    <Lambda> => Expr::Lambda(<>),
+    //<AtomicExpr> => <>,
+    //<Varid> => Expr::Ident(<>),
+    //<Literal> => Expr::Literal(<>),
+    //<Lambda> => Expr::Lambda(<>),
+    //<Application> =>Expr::Application(<>),
+    // add let statements
+    //"(" <Application> ")" => Expr::Application(<>),
+    "(" <Expr> ")" => <>,
+}
+
+// pub AtomicExpr: Expr = {
+//     <Varid> => Expr::Ident(<>),
+//     <Literal> => Expr::Literal(<>),
+//     <Lambda> => Expr::Lambda(<>),
+//     //<Application> =>Expr::Application(<>),
+//     //"(" <Application> ")" =>Expr::Application(<>),
+// }
+
+// pub Application: Application = <func:Expr> <arg:Expr> => Application::new(func, arg);
+// pub ValueBinding: Binding = {
+//     <ident:Varid> "=" <e:Expr> ";" => Binding::new(ident, e),
+// }
+// NewlineSep<T>: Vec<T> = {
+//     <mut v:(<T> "\n")*> <e:T?> => match e {
+//         None => v,
+//         Some(e) => {
+//             v.push(e);
+//             v
+//         }
+//     }
+// };
+// pub Ast: Ast = <ValueBinding*> => Ast::Definitions(<>);
+// 
