@@ -10,8 +10,11 @@ use std::hash::Hash;
 #[derive(Debug)]
 pub struct ScopedMap<K,V> {
     map: HashMap<K,V>,
-    // None acts as a marker 
-    scopes: Vec<Either<(K, V), ()>>,
+    /// Right marks the beginning of a scope.
+    /// 
+    /// Left contains a key and an optional value. 
+    /// If the Option<V> contains true the name was shadowed
+    scopes: Vec<Either<(K, Option<V>), ()>>,
     //scope_id: usize,
 }
 
@@ -24,9 +27,11 @@ impl<K: Eq + Hash + Clone, V> ScopedMap<K,V> {
     }
     pub fn insert(&mut self, key: K, value: V) {
         let x = self.map.insert(key.clone(),value);
-        if let Some(s) = x {
-            self.scopes.push(Left((key, s)));
-        }
+        self.scopes.push(Left((key, x)));
+    }
+
+    pub fn insert_global(&mut self, key: K, value: V) {
+        let x = self.map.insert(key.clone(),value);
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
@@ -44,7 +49,9 @@ impl<K: Eq + Hash + Clone, V> ScopedMap<K,V> {
 
     pub fn leave_scope(&mut self) {
         while let Some(Left((k,v))) = self.scopes.pop() {
-            let _ = self.map.insert(k,v);
+            if let Some(v) = v {
+                let _ = self.map.insert(k,v);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::scoped_map::*;
+use std::fmt::Debug;
 /// Variables are marked as defined if they exist
 /// 
 /// 
@@ -7,15 +8,20 @@ use crate::scoped_map::*;
 
 
 
-#[derive(Debug)]
 pub struct Id {
     name: String,
-    uid: usize,
+    id: usize,
+}
+
+impl Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.name, self.id)
+    }
 }
 
 impl PartialEq for Id {
     fn eq(&self, other: &Self) -> bool {
-        self.uid == other.uid
+        self.id == other.id
     }   
 }
 
@@ -50,14 +56,10 @@ pub struct IdentEnv {
     // maps strings to variable ids. 
     map: ScopedMap<String, usize>,
     vars: Vec<IdentData>,
-    current_unused_id: usize
-
-
+    //current_unused_id: usize
     //var_map: HashMap<String, usize>,
     //scopes: Vec<Vec<(usize, Option<usize>)>>,
     //vars: Vec<IdentData>,
-
-
 }
 
 
@@ -65,41 +67,70 @@ pub struct IdentEnv {
 impl IdentEnv {
     pub fn new() -> Self {
         Self {
+            // maps a name to a varid
             map: ScopedMap::new(),
             vars: Vec::new(),
-            current_unused_id: 0
+            //current_unused_id: 0
             //var_map: HashMap::new(),
             //scopes: Vec
         }
     }
 
-    /// for referencing a variable
+    /// If the variable does not exist 
     /// 
-    pub fn reference(&self, name: &str) -> Id {
-        unimplemented!()
+    /// 
+    pub fn reference(&mut self, name: &str) -> Id {
+        let s = name.to_string();
+        if let Some(id) = self.map.get(&s) {
+            Id {
+                id: *id,
+                name: s
+            }
+        } else {
+            let id = self.vars.len();
+            let s = IdentData {
+                id,
+                display_name: name.to_string(),
+                bound: false
+            };
+            self.vars.push(s);
+            Id {
+                id,            
+                name: name.to_string(),
+            }
+        }
+
     }
 
     /// binds a variable
     /// 
     /// If a variable is bound and it already exists then 
     pub fn bind(&mut self, name: &str) -> Id {
-        /*if let Some(uid) = self.var_map.get(name) {
+        let name = name.to_string();
+        if let Some(s) = self.map.get(&name) {
+            self.vars[*s].bound = true;
             return Id {
-                name: name.to_string(),
-                uid: *uid
-            };
-        };*/
-        
+                name,
+                id: *s
+            }
+        }
 
-        //self.map.
-
-
-        unimplemented!()
+        let id = self.vars.len();
+        let s = IdentData {
+            id,
+            display_name: name.to_string(),
+            bound: true
+        };
+        self.vars.push(s);
+        self.map.insert(name.to_string(), id);
+        Id {
+            id,            
+            name: name.to_string(),
+        }
     }
 
     pub fn enter_scope(&mut self) {
         self.map.enter_scope();
-        //self.scopes.push(vec![]);
     }
 
     pub fn leave_scope(&mut self) {

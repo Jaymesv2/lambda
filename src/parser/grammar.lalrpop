@@ -108,17 +108,14 @@ SemiSep<Rule>: Vec<Rule> =
 
 
 
-pub Varid: Varid = "ident" => Varid::from_str(<>);
+//pub Varid: Varid = "ident" => Varid::from_str(<>);
+//pub Operator: Varid = "operator" => Varid::from_str(<>);
 
 
-//pub Ident: Id = {
-//    "ident" => {
-//        ident_env.
-//    }
-//};
-
-
-pub Operator: Varid = "operator" => Varid::from_str(<>);
+pub Ident: Id = {
+    <"ident"> => ident_env.bind(<>),
+    "(" <"operator"> ")" => ident_env.bind(<>),
+}
 
 pub Literal: Literal = {
     "integer literal" => Literal::Integer(<>),
@@ -129,34 +126,60 @@ pub Literal: Literal = {
 
 
 Binding: Binding = {
-    <v:Varid> "=" <e:Expr> => Binding::new(v,e),
+    <v:Ident> "=" <e:Expr> => Binding::new(v,e),
 }
 
-LetBindings: Vec<Binding> = {
-    LBrace <SemiSep<Binding>> RBrace => <>,
-    
+LetLBrace: () = LBrace => ident_env.enter_scope();
+
+Let: Expr = {
+    "let" LetLBrace <b:SemiSep<Binding>> RBrace "in" <e:Expr> => {
+        ident_env.leave_scope();
+        Expr::Let(b, Box::new(e))
+    },
 }
+
+LambdaBSlash: () = "\\" => ident_env.leave_scope();
+
+// ends the scope
+pub Lambda: Expr = {
+    LambdaBSlash <args:Ident*> "->" <body:Expr> => {
+        Expr::Lambda {
+            args,
+            body: Box::new(body)
+        }
+    },
+}
+
+
+
 
 AtomicExpr: Expr = {
-    <Varid> => Expr::Ident(<>),
+    "ident" => Expr::Ident(ident_env.reference(<>)),
     <Literal> => Expr::Literal(<>),
-    "(" <CommaSep<Expr>> ")" => Expr::Tuple(Tuple::new(<>)),
+    "(" <CommaSep<Expr>> ")" => Expr::Tuple(<>),
 }
+
+Application: Expr = <func:AtomicExpr> <args:AtomicExpr+> => Expr::Application {
+    func: Box::new(func), 
+    args,
+};
 
 AppExpr: Expr = {
     AtomicExpr,
-    <first:AtomicExpr> <rem:AtomicExpr+> => Expr::Application(Application::new(first, rem)),
+    Application,
 }
+
+
 
 InfixExpr: Expr = {
     AppExpr,
-    "\\" <bindings:Varid*> "->" <e:Expr> => Expr::Lambda(Lambda::new(bindings, e)),
-    <lhs:AppExpr> <op:Operator> <rhs:InfixExpr> => Expr::Operator(Box::new(lhs), op, Box::new(rhs)),
+    Lambda,
+    <lhs:AppExpr> <op:"operator"> <rhs:InfixExpr> => Expr::Operator(Box::new(lhs), ident_env.reference(op), Box::new(rhs)),
 }
 
 pub Expr: Expr = {
     InfixExpr,
-    "let" LBrace <b:SemiSep<Binding>> RBrace "in" <e:Expr> => Expr::Let(b, Box::new(e)),
+    Let,
     "if" <cond:InfixExpr> "then" <t:InfixExpr> "else" <f:InfixExpr> => Expr::If(Box::new(cond), Box::new(t), Box::new(f)),
     //"case"
 }

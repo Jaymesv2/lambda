@@ -22,7 +22,7 @@ fn is_varident_start(ch: char) -> bool {
 }
 
 fn is_varident_cont(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || ch == '_'
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '\''
 }
 
 fn is_operator_char(ch: char) -> bool {
