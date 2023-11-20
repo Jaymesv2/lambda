@@ -1,4 +1,6 @@
 use clap::{Parser, Subcommand};
+use std::fs::File;
+use std::io::prelude::*;
 
 /// A simple lambda calculus evaluator
 #[derive(Parser, Debug)]
@@ -21,7 +23,7 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Run {
-
+        files: Vec<String>
     },
     Build {
         files: Vec<String>
@@ -29,39 +31,45 @@ enum Commands {
 }
 
 
-/*
+use lambda::{parser::{Layout, Tokenizer, tokenizer, grammar}, ident_env::*};
+
+fn run_file(prog: &str) {
+    let tok = Layout::new(prog, Tokenizer::new(prog));
+    let mut idents = IdentEnv::new();
+    //let tok = Layout::new(prog, tok);
+    let x = grammar::ProgramParser::new().parse(prog, &mut idents, tok.map(tokenizer::to_triple));
+
+    let ast = match x {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to parse: {e:?}");
+            return;
+        }
+    };
+
+    println!("{ast:?}");
+
+}
+
 fn main() {
     let args = Args::parse();
 
-    println!("{args:?}");
+    match args.command {
+        Commands::Run {
+            files
+        } => {
+            for fname in files {
+                let mut f =  File::open(fname).expect("failed to open file");
+                let mut s = String::new();
+                f.read_to_string(&mut s).expect("failed to read file");
+                run_file(&s);
+            }
+        },
 
-    //for _ in 0..args.count {
-        //println!("Hello {}!", args.name)
-    //}
-} 
-*/
+        /*Commands::Build {
+            files
+        } => {},*/
 
-fn main() {
-    use lambda::parser::tokenizer::Tokenizer;
-    let program = r#"
-        add1 = \x -> x + "hi\n\u{0041}\u{ffff}"
-        main = \x -> x
-        do_stuff32X = \x -> let a = -532 in x+a
-        argfunc x y z = z + y + z
-    "#;
-    let mut lx = Tokenizer::new(program);
-    let mut tokens = Vec::new();
-
-    while let Some(s) = lx.next() {
-        if let Ok(s) = s {
-            tokens.push(s.1)
-        }
+        _ => unimplemented!("")
     }
-
-    println!("tokens: {tokens:?}");
-
-    let prog = r#" \x -> 1"#;
-    let tok = Tokenizer::new(prog);
-    let x = lambda::parser::grammar::ExprParser::new().parse(prog, tok);
-    println!("{x:?}");
-}
+} 

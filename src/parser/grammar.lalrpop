@@ -1,18 +1,21 @@
 use std::str::FromStr;
-use crate::parser::{
-    ast::*,
-    pos::*,
-    tokenizer::*,
-    grammar::Error
+
+use crate::{
+    ident_env::{IdentEnv, Id},
+    parser::{
+        parse_tree::*,
+        pos::*,
+        tokenizer::*,
+        grammar::Error,
+    }
 };
 
 use std::vec::Vec;
 
-//grammar;
-
 //grammar<'input, 'env, Id>(src: &'input str, type_cache: &TypeCache<Id, ArcType<Id>>, env: MutIdentEnv<'env, Id>, errors: ErrorEnv<'env, 'input>) where Id: Clone;
 
-grammar<'a>(src: &'a str);
+grammar<'a, 'b>(src: &'a str, ident_env: &'b mut IdentEnv);
+
 extern {
     type Location = BytePos;
     type Error = Spanned<TokenizerError, BytePos>;
@@ -41,13 +44,16 @@ extern {
         "|" => Token::Pipe, //'|'
         "," => Token::Comma, //','
         ";" => Token::Semi, //';'
+        "v;" => Token::VirtualSemi, //';'
         "~" => Token::Tilde, //'`'
         "\\" => Token::Backslash, // '\\'
-        "[" => Token::LBracket, //'[' 
+        "[" => Token::LBracket, //'['
         "{" => Token::LBrace, //'{' 
+        "v{" => Token::VirtualLBrace,
         "(" => Token::LParen, //'('
         "]" => Token::RBracket, //']'
         "}" => Token::RBrace, //'}'
+        "v}" => Token::VirtualRBrace,
         ")" => Token::RParen, //')'
 
         "=" => Token::Equals, 
@@ -57,70 +63,104 @@ extern {
     }
 }
 
-// pub Varid: Varid = <r#"[a-z][A-Za-z0-9]*"#> => Varid::new(String::from(<>));
-// 
-// PosInteger: u64 = <r"0|([1-9][0-9]*)"> => u64::from_str(<>).unwrap();
-// NegInteger: i64 = "-" <PosInteger> => -(<> as i64);
-// 
-// pub Integer: i64 = {
-//     <PosInteger> => <> as i64,
-//     <NegInteger> => <>,
-// };
-// 
-// pub String: String = {
-//     <r#""([^"]*)""#>=> String::from(<>),
-// };
-// 
-// pub Literal: Literal = {
-//     <Integer> => Literal::Integer(<>),
-//     <String> => Literal::String(<>),
-// };
+Sp<Rule>: Spanned<Rule, BytePos> =
+    <l: @L> <rule: Rule> <r: @R> => pos::spanned(l, r, rule);
+
+
+LBrace: () = {
+    "{" => (),
+    "v{" => (),
+
+};
+RBrace: () = {
+    "}" => (),
+    "v}" => (),
+
+};
+
+Semi: () = {
+    ";" => (),
+    "v;" => (),
+    //<!> =
+};
+
+Comma: () = {
+    "," => (),
+    // Necessar
+    //<!> => unimplemented!()//errors.push(<>.error)
+};
+
+CommaSep<Rule>: Vec<Rule> =
+    <rules: (<Rule> Comma)*> <last: Rule?> => {
+        let mut rules = rules;
+        rules.extend(last);
+        rules
+    };
+        
+SemiSep<Rule>: Vec<Rule> =
+    <rules: (<Rule> Semi)*> <last: Rule?> => {
+        let mut rules = rules;
+        rules.extend(last);
+        rules
+    };
+
+
+
+
 
 pub Varid: Varid = "ident" => Varid::from_str(<>);
+
+
+//pub Ident: Id = {
+//    "ident" => {
+//        ident_env.
+//    }
+//};
+
+
+pub Operator: Varid = "operator" => Varid::from_str(<>);
 
 pub Literal: Literal = {
     "integer literal" => Literal::Integer(<>),
     "string literal" => Literal::String(<>),
+    "char literal" =>  Literal::Char(<>),
+    "float literal" => Literal::Float(<>),
 }
 
-pub Lambda: Lambda = "\\" <binding:Varid> "->" <body:Expr> => Lambda::new(binding, body);
 
-pub Application: Application = <func:Expr> <arg:Expr> => Application::new(func, arg);
+Binding: Binding = {
+    <v:Varid> "=" <e:Expr> => Binding::new(v,e),
+}
 
-pub Expr: Expr = {
+LetBindings: Vec<Binding> = {
+    LBrace <SemiSep<Binding>> RBrace => <>,
+    
+}
+
+AtomicExpr: Expr = {
     <Varid> => Expr::Ident(<>),
     <Literal> => Expr::Literal(<>),
-    <Lambda> => Expr::Lambda(<>),
-    //<AtomicExpr> => <>,
-    //<Varid> => Expr::Ident(<>),
-    //<Literal> => Expr::Literal(<>),
-    //<Lambda> => Expr::Lambda(<>),
-    //<Application> =>Expr::Application(<>),
-    // add let statements
-    //"(" <Application> ")" => Expr::Application(<>),
-    "(" <Expr> ")" => <>,
+    "(" <CommaSep<Expr>> ")" => Expr::Tuple(Tuple::new(<>)),
 }
 
-// pub AtomicExpr: Expr = {
-//     <Varid> => Expr::Ident(<>),
-//     <Literal> => Expr::Literal(<>),
-//     <Lambda> => Expr::Lambda(<>),
-//     //<Application> =>Expr::Application(<>),
-//     //"(" <Application> ")" =>Expr::Application(<>),
-// }
+AppExpr: Expr = {
+    AtomicExpr,
+    <first:AtomicExpr> <rem:AtomicExpr+> => Expr::Application(Application::new(first, rem)),
+}
 
-// pub Application: Application = <func:Expr> <arg:Expr> => Application::new(func, arg);
-// pub ValueBinding: Binding = {
-//     <ident:Varid> "=" <e:Expr> ";" => Binding::new(ident, e),
-// }
-// NewlineSep<T>: Vec<T> = {
-//     <mut v:(<T> "\n")*> <e:T?> => match e {
-//         None => v,
-//         Some(e) => {
-//             v.push(e);
-//             v
-//         }
-//     }
-// };
-// pub Ast: Ast = <ValueBinding*> => Ast::Definitions(<>);
-// 
+InfixExpr: Expr = {
+    AppExpr,
+    "\\" <bindings:Varid*> "->" <e:Expr> => Expr::Lambda(Lambda::new(bindings, e)),
+    <lhs:AppExpr> <op:Operator> <rhs:InfixExpr> => Expr::Operator(Box::new(lhs), op, Box::new(rhs)),
+}
+
+pub Expr: Expr = {
+    InfixExpr,
+    "let" LBrace <b:SemiSep<Binding>> RBrace "in" <e:Expr> => Expr::Let(b, Box::new(e)),
+    "if" <cond:InfixExpr> "then" <t:InfixExpr> "else" <f:InfixExpr> => Expr::If(Box::new(cond), Box::new(t), Box::new(f)),
+    //"case"
+}
+
+pub Program: Program = {
+    <b:SemiSep<Binding>> => Program::Definitions(b)
+}

@@ -6,6 +6,8 @@ use std::{str::Chars, fmt::Display};
 /// this needs a manual ord impl
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Location {
+    line: usize,
+    column: usize,
     absolute: usize
 }
 
@@ -28,6 +30,8 @@ impl Display for Location {
 impl Location {
     pub fn new() -> Self {
         Self {
+            line: 0,
+            column: 0,
             absolute: 0
         }
     }
@@ -35,7 +39,16 @@ impl Location {
     /// Steps the location forward by the character
     pub fn step(&self,ch: char) -> Location {
         // increment the absolut position
+        let (line, column) = if ch == '\n' || ch == '\r' || ch == '\u{0012}' || ch == '\u{0014}'  {
+            (self.line+1, 1)
+        } else {
+            (self.line, self.column+1)
+
+        };
+
         Self {
+            line,
+            column,
             absolute: self.absolute + ch.len_utf8()
         }
     }
@@ -73,9 +86,10 @@ pub struct Spanned<T, P> {
     pub span: Span<P>,
     pub value: T
 }
-impl<T,P> Spanned<T,P> {
-    pub fn to_triple() {
-        
+
+impl<T> From<Spanned<T,Location>> for (usize, T, usize) {
+    fn from(value: Spanned<T,Location>) -> Self {
+        (value.span.start.to_usize(), value.value, value.span.end.to_usize())
     }
 }
 

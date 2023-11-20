@@ -48,8 +48,10 @@ fn is_hex_digit(ch: char) -> bool {
 pub enum Token<'a> {
     VarIdent(&'a str),
     Operator(&'a str),
-
+    //Whitespace(usize),
     Whitespace(&'a str),
+    Comment(&'a str),
+    Newline,
 
     StringLiteral(String),
     CharLiteral(char),
@@ -57,8 +59,6 @@ pub enum Token<'a> {
     ByteLiteral(u8),
     FloatLiteral(f64),
 
-    Comment,
-    Newline,
     //Operator(String),
     Special,
     If,
@@ -72,6 +72,7 @@ pub enum Token<'a> {
     Pipe, //'|'
     Comma, //','
     Semi, //';'
+    VirtualSemi, // inserted by the layout system
     Tilde, //'`'
     LBracket, //'[' 
     LBrace, //'{' 
@@ -185,7 +186,6 @@ impl<'a> Tokenizer<'a> {
     fn operator(&mut self, start: Location) -> TokenizerResult<'a> {
         let (end, st) = self.take_while(start, |ch| is_operator_char(ch));
 
-        //spanned(start, end, )       
         let tok = match st {
             "=" => Token::Equals,
             "\\" => Token::Backslash,
@@ -302,12 +302,19 @@ impl<'a> Tokenizer<'a> {
         Ok(spanned(start, end, tok))
     }
 
-    fn line_comment(&mut self, start: Location) -> Result<(), TokenizerError> { 
-        let _ = self.next_char();
-        let (_end, _st) = self.take_until(start, |ch| ch == '\n');
-        Ok(())
+    fn line_comment(&mut self, start: Location) -> TokenizerResult<'a> {
+        let (end, st) = self.take_until(start, |ch| ch == '\n');
+        let tok = Token::Comment(st);
+
+        Ok(spanned(start, end, tok))
     }
 
+    fn whitespace(&mut self, start: Location) -> TokenizerResult<'a> {
+        let (end, st) =  self.take_while(start, |ch| ch.is_whitespace());
+        let tok = Token::Whitespace(st);
+
+        Ok(spanned(start, end, tok))
+    }
     
 
 
@@ -322,16 +329,15 @@ impl<'a> Tokenizer<'a> {
 impl<'a> Iterator for Tokenizer<'a> {
     //type Item = Result<Spanned<Token<'a>, Location>, TokenizerError>;
     //type Item = Result<(Location, Token<'a>, Location), Spanned<TokenizerError, Location>>;
-    type Item = Result<(BytePos, Token<'a>, BytePos), Spanned<TokenizerError, BytePos>>;
+    type Item = Result<Spanned<Token<'a>, Location>, Spanned<TokenizerError, Location>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((loc, ch)) = self.next_char() {
-            let a = Some(match ch {
+            let a = match ch {
                 '|' => Ok(spanned(loc, loc.step(ch), Token::Pipe)),
                 ',' => Ok(spanned(loc, loc.step(ch), Token::Comma)),
                 ';' => Ok(spanned(loc, loc.step(ch), Token::Semi)),
                 '`' => Ok(spanned(loc, loc.step(ch), Token::Tilde)),
-
                 ']' => Ok(spanned(loc, loc.step(ch), Token::RBracket)),
                 '}' => Ok(spanned(loc, loc.step(ch), Token::RBrace)),
                 ')' => Ok(spanned(loc, loc.step(ch), Token::RParen)),
@@ -341,39 +347,30 @@ impl<'a> Iterator for Tokenizer<'a> {
                 '"' => self.string_literal(loc),
 
                 //'\\' => Ok(spanned(loc, loc.step(ch), Token::Backslash)),
-                '/' if self.test_lookahead(|ch| ch=='/') => {
+                '/' if self.test_lookahead(|ch| ch == '/') => {
                     let _ = self.line_comment(loc);
                     continue
                 },
                 ch if is_varident_start(ch) => self.identifier(loc),
-                ch if is_digit(ch)  => {
-                    println!("first is digit {loc}");
-                    self.numeric_literal(loc)
-                },
-                ch if (ch == '-' && self.test_lookahead(is_digit)) => {
-                    println!("minus digit");
-                    self.numeric_literal(loc)
-                },
+                ch if is_digit(ch)  => self.numeric_literal(loc),
+                ch if (ch == '-' && self.test_lookahead(is_digit)) => self.numeric_literal(loc),
                 ch if is_operator_char(ch) => self.operator(loc),
-                ch if ch.is_whitespace() => continue,
-                //_ => Err(),//unimplemented!(),
+                ch if ch.is_whitespace() => self.whitespace(loc),
                 _ => Ok(spanned(loc, loc.step(ch), Token::Error(TokenizerError::Unknown(self.slice(loc, loc.step(ch)).to_string()))))
-            });
-            return a.map(|a| a.map(|x| {
-                (BytePos::from(x.span.start), x.value, BytePos::from(x.span.end))
-            }).map_err(|e| {
-                spanned(BytePos::from(e.span.start), BytePos::from(e.span.end), e.value)
-            }));
+            };
+            return Some(a);
+            // TODO: the layout algorithm will remove the whitespace and comment tokens eventually
         }
         None
     }
 }
 
-// DOES THIS NOT VIOLATE ORPHAN RULES????
-impl<T, Loc> From<Spanned<T,Loc>> for (Loc, T, Loc) {
-    fn from(value: Spanned<T,Loc>) -> Self {
-        unimplemented!()
-    }
+pub fn to_triple<'a, T, E, L, I: From<L>>(a: Result<Spanned<T,L>, Spanned<E,L>>) -> Result<(I, T, I), Spanned<E, I>> {
+    a.map(|x| {
+        (I::from(x.span.start), x.value, I::from(x.span.end))
+    }).map_err(|e| {
+        spanned(I::from(e.span.start), I::from(e.span.end), e.value)
+    })
 }
 /*
 impl<T,P> super::grammar::__TO_TRIPLE for Spanned<T,P> {
