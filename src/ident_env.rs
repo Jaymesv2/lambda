@@ -1,10 +1,11 @@
-use std::collections::HashMap;
 use crate::scoped_map::*;
 use std::fmt::Debug;
-/// Variables are marked as defined if they exist
-/// 
-/// 
 
+
+
+fn rename() {
+    
+}
 
 
 
@@ -43,6 +44,10 @@ struct IdentData {
     bound: bool
 }
 
+
+
+
+
 /// Variable renaming
 /// 
 /// Each variable is given a unique id
@@ -61,8 +66,6 @@ pub struct IdentEnv {
     //scopes: Vec<Vec<(usize, Option<usize>)>>,
     //vars: Vec<IdentData>,
 }
-
-
 
 impl IdentEnv {
     pub fn new() -> Self {
@@ -138,4 +141,3 @@ impl IdentEnv {
     }
 
 }
-

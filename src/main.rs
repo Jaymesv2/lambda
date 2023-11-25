@@ -35,8 +35,11 @@ use lambda::{parser::{Layout, Tokenizer, tokenizer, grammar}, ident_env::*};
 
 fn run_file(prog: &str) {
     let tok = Layout::new(prog, Tokenizer::new(prog));
-    let mut idents = IdentEnv::new();
-    let x = grammar::ProgramParser::new().parse(prog, &mut idents, tok.map(tokenizer::to_triple));
+
+    let x = tok.clone().filter_map(|x| x.ok()).collect::<Vec<_>>();
+    println!("{x:?}");
+    //let mut idents = IdentEnv::new();
+    let x = grammar::ProgramParser::new().parse(prog, tok.map(tokenizer::to_triple));
 
     let ast = match x {
         Ok(s) => s,
@@ -47,7 +50,7 @@ fn run_file(prog: &str) {
     };
     
     println!("{ast:?}");
-    println!("{idents:?}");
+    //println!("{idents:?}");
 }
 
 fn main() {

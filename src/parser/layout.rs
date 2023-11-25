@@ -3,8 +3,10 @@ use super::tokenizer::{
     TokenizerError,
     Token
 };
+
 use super::pos::*;
 
+#[derive(Debug, Clone)]
 pub struct Layout<'a> {
     source: &'a str,
     ctx_stack: Vec<Context>,
@@ -33,6 +35,7 @@ impl<'a> Iterator for Layout<'a> {
                 Ok(v) => {
                     match v.value {
                         Token::Comment(_) => continue,
+                        Token::BlockComment(_) => continue,
                         Token::Whitespace(_) => continue,
                         _ => {}
                     }
@@ -45,10 +48,11 @@ impl<'a> Iterator for Layout<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
 enum ContextType {
     Let(usize)
 }
-
+#[derive(Debug, Clone)]
 struct Context {
 
 }

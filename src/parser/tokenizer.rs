@@ -25,6 +25,16 @@ fn is_varident_cont(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '\''
 }
 
+fn is_typeident_start(ch: char) -> bool {
+    ch.is_ascii_uppercase() || ch == '_'
+
+}
+
+fn is_typeident_cont(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+    
+}
+
 fn is_operator_char(ch: char) -> bool {
     //"!#$%&*+-./<=>?@\\^|-~:".chars().any(|x| x == ch)
     "#$%&*+-./<=>?@\\^|-:".chars().any(|x| x == ch)
@@ -47,10 +57,12 @@ fn is_hex_digit(ch: char) -> bool {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token<'a> {
     VarIdent(&'a str),
+    TypeIdent(&'a str),
     Operator(&'a str),
     //Whitespace(usize),
     Whitespace(&'a str),
     Comment(&'a str),
+    BlockComment(&'a str),
     Newline,
 
     StringLiteral(String),
@@ -68,6 +80,12 @@ pub enum Token<'a> {
     In,
     Case,
     Of,
+
+    Data,
+
+    Colon, // ":"
+    Wildcard, // "_"
+    TypeDef, //"::"
 
     Pipe, //'|'
     Comma, //','
@@ -103,6 +121,7 @@ pub enum TokenizerError {
 
 type TokenizerResult<'a> = Result<Spanned<Token<'a>, Location>, Spanned<TokenizerError, Location>>;
 
+#[derive(Debug, Clone)]
 pub struct Tokenizer<'a> {
     source: &'a str,
     chars: CharLocations<'a>,
@@ -191,24 +210,26 @@ impl<'a> Tokenizer<'a> {
             "\\" => Token::Backslash,
             "->" => Token::Arrow,
             "=>" => Token::BigArrow,
+            "::" => Token::TypeDef,
+            ":" => Token::Colon,
             s => Token::Operator(s),
         };
         Ok(spanned(start, end, tok))
     }
 
-    fn identifier(&mut self, start: Location) -> TokenizerResult<'a> {
+    fn var_identifier(&mut self, start: Location) -> TokenizerResult<'a> {
         let (end, st) = self.take_while(start, |ch| is_varident_cont(ch));
 
         //spanned(start, end, )       
         let tok = match st {
             /*"type",
             "class",
-            "data",
             "do",
             "import",
             "module",
             */
 
+            "data" => Token::Data,
             // let expressions
             "let" => Token::Let,
             "in" => Token::In,
@@ -223,6 +244,11 @@ impl<'a> Tokenizer<'a> {
             s => Token::VarIdent(s),
         };
         Ok(spanned(start, end, tok))
+    }
+
+    fn type_identifier(&mut self, start: Location) -> TokenizerResult<'a> {
+        let (end, st) = self.take_while(start, |ch| is_varident_cont(ch));
+        Ok(spanned(start, end, Token::TypeIdent(st)))
     }
 
     fn string_literal(&mut self, start: Location) -> TokenizerResult<'a> {
@@ -309,6 +335,17 @@ impl<'a> Tokenizer<'a> {
         Ok(spanned(start, end, tok))
     }
 
+    fn block_comment(&mut self, start: Location) -> TokenizerResult<'a> {
+        while let Some((_,  ch)) = self.next_char() {
+            if ch == '*' && self.test_lookahead(|ch| ch == '/') {
+                let _ = self.next_char();
+                break;
+            } 
+        }
+        
+        Ok(spanned(start, self.location, Token::BlockComment(self.slice(start, self.location))))
+    }
+
     fn whitespace(&mut self, start: Location) -> TokenizerResult<'a> {
         let (end, st) =  self.take_while(start, |ch| ch.is_whitespace());
         let tok = Token::Whitespace(st);
@@ -351,9 +388,18 @@ impl<'a> Iterator for Tokenizer<'a> {
                     let _ = self.line_comment(loc);
                     continue
                 },
-                ch if is_varident_start(ch) => self.identifier(loc),
+                '/' if self.test_lookahead(|ch| ch == '*') => {
+                    let _ = self.block_comment(loc);
+                    continue
+                    
+                }
+                '_' if !self.test_lookahead(is_varident_cont) => Ok(spanned(loc, loc.step(ch), Token::Wildcard)),
+                ch if is_varident_start(ch) => self.var_identifier(loc),
+                ch if is_typeident_start(ch) => self.type_identifier(loc),
+
                 ch if is_digit(ch)  => self.numeric_literal(loc),
-                ch if (ch == '-' && self.test_lookahead(is_digit)) => self.numeric_literal(loc),
+                '-' if self.test_lookahead(is_digit) => self.numeric_literal(loc),
+
                 ch if is_operator_char(ch) => self.operator(loc),
                 ch if ch.is_whitespace() => self.whitespace(loc),
                 _ => Ok(spanned(loc, loc.step(ch), Token::Error(TokenizerError::Unknown(self.slice(loc, loc.step(ch)).to_string()))))

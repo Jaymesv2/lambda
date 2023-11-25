@@ -1,10 +1,10 @@
 //! Source location tracking helpers
 
 
-use std::{str::Chars, fmt::Display};
+use std::{str::Chars, fmt::{Display, Debug}};
 
 /// this needs a manual ord impl
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Location {
     line: usize,
     column: usize,
@@ -20,10 +20,17 @@ impl From<Location> for BytePos {
         Self(value.absolute)
     }
 }
-
+/*
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Location: {{ absolut: {} }}", self.absolute)
+    }
+}
+*/
+
+impl Debug for Location {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.line, self.column, self.absolute)
     }
 }
 
@@ -59,6 +66,7 @@ impl Location {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct CharLocations<'a> {
     //source: &'a str,
     inner: Chars<'a>,
@@ -81,10 +89,16 @@ pub struct Span<P> {
     pub end: P
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Spanned<T, P> {
     pub span: Span<P>,
     pub value: T
+}
+
+impl<T: Debug,P:Debug> Debug for Spanned<T,P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{ {:?} [{:?}-{:?}] }}", self.value, self.span.start, self.span.end)
+    }
 }
 
 impl<T> From<Spanned<T,Location>> for (usize, T, usize) {
@@ -102,7 +116,6 @@ pub fn spanned<T, P>(start: P, end: P, value: T) -> Spanned<T, P> {
         value
     }
 } 
-
 
 impl<'a> Iterator for CharLocations<'a> {
     type Item = (Location, char);
