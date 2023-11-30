@@ -1,14 +1,13 @@
 //! Source location tracking helpers
 
-
-use std::{str::Chars, fmt::{Display, Debug}};
+use std::{fmt::Debug, str::Chars};
 
 /// this needs a manual ord impl
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Location {
     line: usize,
     column: usize,
-    absolute: usize
+    absolute: usize,
 }
 
 //#[derive(Debug, Clone, Copy, Default)]
@@ -20,6 +19,7 @@ impl From<Location> for BytePos {
         Self(value.absolute)
     }
 }
+
 /*
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -39,24 +39,23 @@ impl Location {
         Self {
             line: 0,
             column: 0,
-            absolute: 0
+            absolute: 0,
         }
     }
 
     /// Steps the location forward by the character
-    pub fn step(&self,ch: char) -> Location {
+    pub fn step(&self, ch: char) -> Location {
         // increment the absolut position
-        let (line, column) = if ch == '\n' || ch == '\r' || ch == '\u{0012}' || ch == '\u{0014}'  {
-            (self.line+1, 1)
+        let (line, column) = if ch == '\n' || ch == '\r' || ch == '\u{0012}' || ch == '\u{0014}' {
+            (self.line + 1, 1)
         } else {
-            (self.line, self.column+1)
-
+            (self.line, self.column + 1)
         };
 
         Self {
             line,
             column,
-            absolute: self.absolute + ch.len_utf8()
+            absolute: self.absolute + ch.len_utf8(),
         }
     }
 
@@ -64,7 +63,6 @@ impl Location {
         self.absolute
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct CharLocations<'a> {
@@ -86,36 +84,41 @@ impl<'a> CharLocations<'a> {
 #[derive(Debug, Clone)]
 pub struct Span<P> {
     pub start: P,
-    pub end: P
+    pub end: P,
 }
 
 #[derive(Clone)]
 pub struct Spanned<T, P> {
     pub span: Span<P>,
-    pub value: T
+    pub value: T,
 }
 
-impl<T: Debug,P:Debug> Debug for Spanned<T,P> {
+impl<T: Debug, P: Debug> Debug for Spanned<T, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{ {:?} [{:?}-{:?}] }}", self.value, self.span.start, self.span.end)
+        write!(
+            f,
+            "{{ {:?} [{:?}-{:?}] }}",
+            self.value, self.span.start, self.span.end
+        )
     }
 }
 
-impl<T> From<Spanned<T,Location>> for (usize, T, usize) {
-    fn from(value: Spanned<T,Location>) -> Self {
-        (value.span.start.to_usize(), value.value, value.span.end.to_usize())
+impl<T> From<Spanned<T, Location>> for (usize, T, usize) {
+    fn from(value: Spanned<T, Location>) -> Self {
+        (
+            value.span.start.to_usize(),
+            value.value,
+            value.span.end.to_usize(),
+        )
     }
 }
 
 pub fn spanned<T, P>(start: P, end: P, value: T) -> Spanned<T, P> {
     Spanned {
-        span: Span {
-            start, 
-            end
-        },
-        value
+        span: Span { start, end },
+        value,
     }
-} 
+}
 
 impl<'a> Iterator for CharLocations<'a> {
     type Item = (Location, char);

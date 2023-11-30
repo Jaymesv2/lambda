@@ -20,6 +20,7 @@ lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
 clap = { version = "4.4.8", features = ["derive"] }
 clap-verbosity-flag = "2.1.0"
 either = "1.9.0"
+petgraph = "0.6.4"
 
 # Add a build-time dependency on the lalrpop library:
 [build-dependencies]

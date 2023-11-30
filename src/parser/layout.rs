@@ -1,44 +1,36 @@
-use super::tokenizer::{
-    Tokenizer,
-    TokenizerError,
-    Token
-};
+use super::tokenizer::{Token, Tokenizer, TokenizerError};
 
 use super::pos::*;
 
 #[derive(Debug, Clone)]
 pub struct Layout<'a> {
-    source: &'a str,
+    /*source: &'a str,
     ctx_stack: Vec<Context>,
-    token_queue: Vec<Token<'a>>,
+    token_queue: Vec<Token<'a>>,*/
     tokenizer: Tokenizer<'a>,
 }
 
 impl<'a> Layout<'a> {
-    pub fn new(source: &'a str, tokenizer: Tokenizer<'a>) -> Self {
+    pub fn new(_source: &'a str, tokenizer: Tokenizer<'a>) -> Self {
         Self {
-            source,
+            /*source,
             ctx_stack: Vec::new(),
-            token_queue: Vec::new(),
+            token_queue: Vec::new(),*/
             tokenizer,
         }
     }
 }
-
-
 
 impl<'a> Iterator for Layout<'a> {
     type Item = Result<Spanned<Token<'a>, Location>, Spanned<TokenizerError, Location>>;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(token) = self.tokenizer.next() {
             match &token {
-                Ok(v) => {
-                    match v.value {
-                        Token::Comment(_) => continue,
-                        Token::BlockComment(_) => continue,
-                        Token::Whitespace(_) => continue,
-                        _ => {}
-                    }
+                Ok(v) => match v.value {
+                    Token::Comment(_) => continue,
+                    Token::BlockComment(_) => continue,
+                    Token::Whitespace(_) => continue,
+                    _ => {}
                 },
                 _ => {}
             }
@@ -47,14 +39,9 @@ impl<'a> Iterator for Layout<'a> {
         return None;
     }
 }
-
 #[derive(Debug, Clone)]
 enum ContextType {
-    Let(usize)
+    //Let(usize)
 }
 #[derive(Debug, Clone)]
-struct Context {
-
-}
-
-
+struct Context {}
